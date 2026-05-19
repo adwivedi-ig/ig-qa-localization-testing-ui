@@ -1,0 +1,177 @@
+<div id="uploadContainer" style="max-width: 500px; margin: 40px auto; padding: 24px; border: 1px solid #ccc; border-radius: 8px;">
+    <h2>Upload Localization Files</h2>
+    <form id="uploadForm">
+    <label for="langFiles">Language JSON files</label>
+    <span style="color: #d32f2f; font-size: 12px; margin-left: 8px; vertical-align: middle;">*make sure you selected en.json file</span>
+    <input type="file" id="langFiles" name="langFiles" accept=".json" multiple required>
+    <div id="langFilesInfo" style="margin: 4px 0 10px 0; color: #555; font-size: 13px; display: block; min-height: 18px;"></div>
+
+        <label for="fontFile">Font Family JSON file</label>
+        <input type="file" id="fontFile" name="fontFile" accept=".json" required>
+    <div id="fontFileInfo" style="margin: 4px 0 10px 0; color: #555; font-size: 13px; display: block; min-height: 18px;"></div>
+
+        <button type="submit">Upload & Continue</button>
+    </form>
+    <div id="message"></div>
+</div>
+<div id="previewUI" style="display:none;">
+    <div style="position: relative; width: 100%; height: 100vh;">
+        <div style="position: absolute; top: 10px; right: 10px; display: flex; align-items: center; gap: 10px;">
+            <button id="logoutBtn" style="margin-right: 18px; padding: 6px 16px; font-size: 14px; font-weight: bold; background: #e74c3c; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Logout</button>
+            <label for="langSelect" style="font-weight: bold; margin-right: 8px;">Lang:</label>
+            <select id="langSelect" style="padding: 5px 10px; font-size: 14px;"></select>
+            <label for="fontSizeSelect" style="font-weight: bold;">Font Size:</label>
+            <select id="fontSizeSelect" style="padding: 5px 10px; font-size: 14px;">
+                <option value="10">10</option>
+                <option value="11">11</option>
+                <option value="12">12</option>
+                <option value="13">13</option>
+                <option value="14" selected>14</option>
+                <option value="15">15</option>
+                <option value="16">16</option>
+                <option value="17">17</option>
+                <option value="18">18</option>
+                <option value="19">19</option>
+                <option value="20">20</option>
+                <option value="21">21</option>
+                <option value="22">22</option>
+                <option value="23">23</option>
+                <option value="24">24</option>
+            </select>
+            <label for="unitSelect" style="font-weight: bold;">Unit:</label>
+            <select id="unitSelect" style="padding: 5px 10px; font-size: 14px;">
+                <option value="px" selected>px</option>
+                <option value="cm">cm</option>
+                <option value="mm">mm</option>
+                <option value="in">in</option>
+                <option value="pt">pt</option>
+            </select>
+            <label for="fontFamilySelect" style="font-weight: bold;">Font Family:</label>
+            <select id="fontFamilySelect" style="padding: 5px 10px; font-size: 14px; min-width: 120px;"></select>
+        </div>
+        <h2 style="padding: 8px 20px 0 20px; margin: 0 0 4px 0;">Localization Content Verification</h2>
+        <div id="spin" style="padding: 20px; margin-top: 50px;"></div>
+    </div>
+</div>
+<script src="spin-localization.js"></script>
+<script>
+// Show selected font-family file name
+document.getElementById('fontFile').addEventListener('change', function() {
+    const file = this.files[0];
+    const infoDiv = document.getElementById('fontFileInfo');
+    console.log('[DEBUG] fontFile change event:', file ? file.name : 'no file');
+    if (!file) {
+        infoDiv.textContent = '';
+        return;
+    }
+    infoDiv.textContent = `Selected: ${file.name}`;
+});
+// Show selected language files as comma-separated list and count
+document.getElementById('langFiles').addEventListener('change', function() {
+    const files = Array.from(this.files);
+    const infoDiv = document.getElementById('langFilesInfo');
+    console.log('[DEBUG] langFiles change event:', files.map(f => f.name));
+    if (!files.length) {
+        infoDiv.textContent = '';
+        return;
+    }
+    const names = files.map(f => f.name).join(', ');
+    infoDiv.style.fontWeight = 'bold';
+    infoDiv.style.color = '#1a237e';
+    infoDiv.textContent = `Selected (${files.length}): ${names}`;
+});
+// Upload form logic: store ALL uploaded files in sessionStorage and show preview UI
+document.getElementById('uploadForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const langFiles = document.getElementById('langFiles').files;
+    const fontFile = document.getElementById('fontFile').files[0];
+    const messageDiv = document.getElementById('message');
+    const uploadBtn = document.querySelector('#uploadForm button[type="submit"]');
+    messageDiv.textContent = '';
+    if (!langFiles.length || !fontFile) {
+        console.log('[DEBUG] Missing required files');
+        messageDiv.innerHTML = '<span style="color:red;">Please select all required files.</span>';
+        return;
+    }
+    // Check for en.json and at least one other language file
+    const fileNames = Array.from(langFiles).map(f => f.name.toLowerCase());
+    if (!fileNames.includes('en.json')) {
+        console.log('[DEBUG] en.json not found in uploaded files:', fileNames);
+        alert('Please select en.json as one of the language files.');
+        messageDiv.innerHTML = '<span style="color:red;">Please select <b>en.json</b> as one of the language files.</span>';
+        return;
+    }
+    if (langFiles.length < 2) {
+        console.log('[DEBUG] Only en.json uploaded, need at least one more language file.');
+        messageDiv.innerHTML = '<span style="color:red;">Please select at least one language JSON file in addition to en.json.</span>';
+        return;
+    }
+    // Validate font-family JSON before storing
+    let fontContent = await fontFile.text();
+    let fontList;
+    try {
+        fontList = JSON.parse(fontContent);
+    } catch (e) {
+        console.log('[DEBUG] Font-family JSON is not valid JSON:', fontContent);
+        messageDiv.innerHTML = '<span style="color:red;">Font-family JSON is not valid JSON.</span>';
+        return;
+    }
+    if (!Array.isArray(fontList) || fontList.length === 0 || typeof fontList[0] !== 'string') {
+        console.log('[DEBUG] Font-family JSON is not a valid array of strings:', fontList);
+        messageDiv.innerHTML = '<span style="color:red;">Please upload a valid font-family JSON (array of font names).</span>';
+        return;
+    }
+    // Read ALL language files as text and store in sessionStorage
+    const langFilesArr = [];
+    for (let i = 0; i < langFiles.length; i++) {
+        const file = langFiles[i];
+        const content = await file.text();
+        langFilesArr.push({ name: file.name, content });
+    }
+    sessionStorage.setItem('langFiles', JSON.stringify(langFilesArr));
+    // Store font file as before
+    const fontFilesArr = [{ name: fontFile.name, content: fontContent }];
+    sessionStorage.setItem('fontFiles', JSON.stringify(fontFilesArr));
+    messageDiv.innerHTML = '<span style="color:green;">Files uploaded! Loading preview...</span>';
+    if (uploadBtn) uploadBtn.disabled = true;
+
+    // Try to load and validate files using the same logic as the preview UI, but catch errors and show them on the upload form
+    setTimeout(async () => {
+        try {
+            // Dynamically load spin-localization.js if not already loaded
+            if (!window.loadJson || !window.loadJsonFromPath) {
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = 'spin-localization.js';
+                    script.onload = resolve;
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                });
+            }
+            // Try to load all required files
+            await window.loadJson('en.json');
+            await window.loadJsonFromPath('font-family/fonts.json');
+            // If no error, show preview UI
+            document.getElementById('uploadContainer').style.display = 'none';
+            document.getElementById('previewUI').style.display = '';
+        } catch (err) {
+            // Show error on upload form, keep form visible
+            messageDiv.innerHTML = `<span style="color:red;font-weight:bold;">Error: ${err && err.message ? err.message : err}</span>`;
+            if (uploadBtn) uploadBtn.disabled = false;
+        }
+    }, 800);
+});
+
+// If files are already in sessionStorage, show preview UI
+if (sessionStorage.getItem('langFiles') && sessionStorage.getItem('fontFiles')) {
+    document.getElementById('uploadContainer').style.display = 'none';
+    document.getElementById('previewUI').style.display = '';
+}
+// Logout button clears session and navigates to root
+document.addEventListener('click', function(e) {
+    if (e.target && e.target.id === 'logoutBtn') {
+        sessionStorage.clear();
+        window.location.href = 'http://localhost:8000';
+    }
+});
+</script>
