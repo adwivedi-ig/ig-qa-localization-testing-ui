@@ -80,7 +80,8 @@
             `;
             // Add logout handler
             document.getElementById('logoutBtn').onclick = function() {
-                window.location.reload();
+                sessionStorage.clear();
+                window.location.href = '/';
             };
             // Initialize the preview logic
             if (typeof initializeApp === 'function') {
