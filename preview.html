@@ -1,26 +1,16 @@
-<div id="uploadContainer" style="max-width: 500px; margin: 40px auto; padding: 24px; border: 1px solid #ccc; border-radius: 8px;">
-    <h2>Upload Localization Files</h2>
-    <form id="uploadForm">
-    <label for="langFiles">Language JSON files</label> 
-    <span style="color: #d32f2f; font-size: 12px; margin-left: 8px; vertical-align: middle;">*make sure you selected en.json file</span>
-    <input type="file" id="langFiles" name="langFiles" accept=".json" multiple required>
-    <div id="langFilesInfo" style="margin: 4px 0 10px 0; color: #555; font-size: 13px; display: block; min-height: 18px;"></div>
-
-        <label for="fontFile">Font Family JSON file</label>
-        <input type="file" id="fontFile" name="fontFile" accept=".json" required>
-    <div id="fontFileInfo" style="margin: 4px 0 10px 0; color: #555; font-size: 13px; display: block; min-height: 18px;"></div>
-
-        <button type="submit">Upload & Continue</button>
-    </form>
-    <div id="message"></div>
-</div>
 <div id="previewUI" style="display:none;">
     <div style="position: relative; width: 100%; height: 100vh;">
-        <div style="position: absolute; top: 10px; right: 10px; display: flex; align-items: center; gap: 10px;">
+        <div id="previewTabs" style="padding: 10px 20px 0 20px; display: flex; gap: 8px;">
+            <button id="previewTabPrimary" type="button" style="padding: 8px 14px; font-size: 14px; font-weight: bold; border: 1px solid #1976d2; background: #1976d2; color: #fff; border-radius: 4px; cursor: pointer;">Home</button>
+            <button id="previewTabDuplicate" type="button" style="padding: 8px 14px; font-size: 14px; font-weight: bold; border: 1px solid #1976d2; background: #fff; color: #1976d2; border-radius: 4px; cursor: pointer;">Localized</button>
+        </div>
+        <h2 style="padding: 8px 20px 0 20px; margin: 0 0 4px 0;">Localization Content Verification</h2>
+        <div id="previewHeaderControls" style="padding: 10px 20px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
             <button id="logoutBtn" style="margin-right: 18px; padding: 6px 16px; font-size: 14px; font-weight: bold; background: #e74c3c; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Logout</button>
-            <label for="langSelect" style="font-weight: bold; margin-right: 8px;">Lang:</label>
+            <!-- Tab 1 controls -->
+            <label id="langLabel" for="langSelect" style="font-weight: bold; margin-right: 8px;">Lang:</label>
             <select id="langSelect" style="padding: 5px 10px; font-size: 14px;"></select>
-            <label for="fontSizeSelect" style="font-weight: bold;">Font Size:</label>
+            <label id="fontSizeLabel" for="fontSizeSelect" style="font-weight: bold;">Font Size:</label>
             <select id="fontSizeSelect" style="padding: 5px 10px; font-size: 14px;">
                 <option value="10">10</option>
                 <option value="11">11</option>
@@ -38,7 +28,7 @@
                 <option value="23">23</option>
                 <option value="24">24</option>
             </select>
-            <label for="unitSelect" style="font-weight: bold;">Unit:</label>
+            <label id="unitLabel" for="unitSelect" style="font-weight: bold;">Unit:</label>
             <select id="unitSelect" style="padding: 5px 10px; font-size: 14px;">
                 <option value="px" selected>px</option>
                 <option value="cm">cm</option>
@@ -46,127 +36,220 @@
                 <option value="in">in</option>
                 <option value="pt">pt</option>
             </select>
-            <label for="fontFamilySelect" style="font-weight: bold;">Font Family:</label>
+            <label id="fontFamilyLabel" for="fontFamilySelect" style="font-weight: bold;">Font Family:</label>
             <select id="fontFamilySelect" style="padding: 5px 10px; font-size: 14px; min-width: 120px;"></select>
+            <!-- Tab 2 controls (hidden until Tab 2 is active) -->
+            <label id="tab2LangLabel" for="tab2LangSelect" style="display: none; font-weight: bold; margin-right: 8px;">Lang:</label>
+            <select id="tab2LangSelect" style="display: none; padding: 5px 10px; font-size: 14px; min-width: 120px;"></select>
         </div>
-        <h2 style="padding: 8px 20px 0 20px; margin: 0 0 4px 0;">Localization Content Verification</h2>
-        <div id="spin" style="padding: 20px; margin-top: 50px;"></div>
+
+        <div id="previewPanePrimary" style="display: block;">
+            <div id="spin" style="padding: 20px;"></div>
+        </div>
+
+        <div id="previewPaneDuplicate" style="display: none;">
+            <div id="spin2" style="padding: 20px;"></div>
+        </div>
     </div>
 </div>
 <script src="spin-localization.js"></script>
+<script src="Localized.js"></script>
 <script>
-// Show selected font-family file name
-document.getElementById('fontFile').addEventListener('change', function() {
-    const file = this.files[0];
-    const infoDiv = document.getElementById('fontFileInfo');
-    console.log('[DEBUG] fontFile change event:', file ? file.name : 'no file');
-    if (!file) {
-        infoDiv.textContent = '';
-        return;
+let activePreviewTab = 'primary';
+const previewTabState = {
+    primary: {
+        controls: { lang: 'ALL', fontSize: '14', unit: 'px', fontFamily: 'ALL_FONTS' },
+        renderedHTML: '',
+        renderedFontFamily: '',
+        renderedFontSize: ''
+    },
+    duplicate: {
+        controls: { lang: 'ALL' }
     }
-    infoDiv.textContent = `Selected: ${file.name}`;
-});
-// Show selected language files as comma-separated list and count
-document.getElementById('langFiles').addEventListener('change', function() {
-    const files = Array.from(this.files);
-    const infoDiv = document.getElementById('langFilesInfo');
-    console.log('[DEBUG] langFiles change event:', files.map(f => f.name));
-    if (!files.length) {
-        infoDiv.textContent = '';
-        return;
-    }
-    const names = files.map(f => f.name).join(', ');
-    infoDiv.style.fontWeight = 'bold';
-    infoDiv.style.color = '#1a237e';
-    infoDiv.textContent = `Selected (${files.length}): ${names}`;
-});
-// Upload form logic: store ALL uploaded files in sessionStorage and show preview UI
-document.getElementById('uploadForm').addEventListener('submit', async function (e) {
-    e.preventDefault();
-    const langFiles = document.getElementById('langFiles').files;
-    const fontFile = document.getElementById('fontFile').files[0];
-    const messageDiv = document.getElementById('message');
-    const uploadBtn = document.querySelector('#uploadForm button[type="submit"]');
-    messageDiv.textContent = '';
-    if (!langFiles.length || !fontFile) {
-        console.log('[DEBUG] Missing required files');
-        messageDiv.innerHTML = '<span style="color:red;">Please select all required files.</span>';
-        return;
-    }
-    // Check for en.json and at least one other language file
-    const fileNames = Array.from(langFiles).map(f => f.name.toLowerCase());
-    if (!fileNames.includes('en.json')) {
-        console.log('[DEBUG] en.json not found in uploaded files:', fileNames);
-        alert('Please select en.json as one of the language files.');
-        messageDiv.innerHTML = '<span style="color:red;">Please select <b>en.json</b> as one of the language files.</span>';
-        return;
-    }
-    if (langFiles.length < 2) {
-        console.log('[DEBUG] Only en.json uploaded, need at least one more language file.');
-        messageDiv.innerHTML = '<span style="color:red;">Please select at least one language JSON file in addition to en.json.</span>';
-        return;
-    }
-    // Validate font-family JSON before storing
-    let fontContent = await fontFile.text();
-    let fontList;
-    try {
-        fontList = JSON.parse(fontContent);
-    } catch (e) {
-        console.log('[DEBUG] Font-family JSON is not valid JSON:', fontContent);
-        messageDiv.innerHTML = '<span style="color:red;">Font-family JSON is not valid JSON.</span>';
-        return;
-    }
-    if (!Array.isArray(fontList) || fontList.length === 0 || typeof fontList[0] !== 'string') {
-        console.log('[DEBUG] Font-family JSON is not a valid array of strings:', fontList);
-        messageDiv.innerHTML = '<span style="color:red;">Please upload a valid font-family JSON (array of font names).</span>';
-        return;
-    }
-    // Read ALL language files as text and store in sessionStorage
-    const langFilesArr = [];
-    for (let i = 0; i < langFiles.length; i++) {
-        const file = langFiles[i];
-        const content = await file.text();
-        langFilesArr.push({ name: file.name, content });
-    }
-    sessionStorage.setItem('langFiles', JSON.stringify(langFilesArr));
-    // Store font file as before
-    const fontFilesArr = [{ name: fontFile.name, content: fontContent }];
-    sessionStorage.setItem('fontFiles', JSON.stringify(fontFilesArr));
-    messageDiv.innerHTML = '<span style="color:green;">Files uploaded! Loading preview...</span>';
-    if (uploadBtn) uploadBtn.disabled = true;
+};
 
-    // Try to load and validate files using the same logic as the preview UI, but catch errors and show them on the upload form
-    setTimeout(async () => {
-        try {
-            // Dynamically load spin-localization.js if not already loaded
-            if (!window.loadJson || !window.loadJsonFromPath) {
-                await new Promise((resolve, reject) => {
-                    const script = document.createElement('script');
-                    script.src = 'spin-localization.js';
-                    script.onload = resolve;
-                    script.onerror = reject;
-                    document.head.appendChild(script);
-                });
-            }
-            // Try to load all required files
-            await window.loadJson('en.json');
-            await window.loadJsonFromPath('font-family/fonts.json');
-            // If no error, show preview UI
-            document.getElementById('uploadContainer').style.display = 'none';
-            document.getElementById('previewUI').style.display = '';
-        } catch (err) {
-            // Show error on upload form, keep form visible
-            messageDiv.innerHTML = `<span style="color:red;font-weight:bold;">Error: ${err && err.message ? err.message : err}</span>`;
-            if (uploadBtn) uploadBtn.disabled = false;
-        }
-    }, 800);
-});
+const TAB1_CONTROL_IDS = ['langLabel', 'langSelect', 'fontSizeLabel', 'fontSizeSelect', 'unitLabel', 'unitSelect', 'fontFamilyLabel', 'fontFamilySelect'];
+const TAB2_CONTROL_IDS = ['tab2LangLabel', 'tab2LangSelect'];
 
-// If files are already in sessionStorage, show preview UI
-if (sessionStorage.getItem('langFiles') && sessionStorage.getItem('fontFiles')) {
-    document.getElementById('uploadContainer').style.display = 'none';
-    document.getElementById('previewUI').style.display = '';
+function getHeaderControlValues() {
+    if (activePreviewTab === 'duplicate') {
+        const tab2LangSelect = document.getElementById('tab2LangSelect');
+        return {
+            lang: tab2LangSelect && tab2LangSelect.value ? tab2LangSelect.value : 'ALL'
+        };
+    }
+    const langSelect = document.getElementById('langSelect');
+    const fontSizeSelect = document.getElementById('fontSizeSelect');
+    const unitSelect = document.getElementById('unitSelect');
+    const fontFamilySelect = document.getElementById('fontFamilySelect');
+    return {
+        lang: langSelect && langSelect.value ? langSelect.value : 'ALL',
+        fontSize: fontSizeSelect && fontSizeSelect.value ? fontSizeSelect.value : '14',
+        unit: unitSelect && unitSelect.value ? unitSelect.value : 'px',
+        fontFamily: fontFamilySelect && fontFamilySelect.value ? fontFamilySelect.value : 'ALL_FONTS'
+    };
 }
+
+function applyHeaderControlValues(controlValues) {
+    if (activePreviewTab === 'duplicate') {
+        const tab2LangSelect = document.getElementById('tab2LangSelect');
+        if (tab2LangSelect && controlValues.lang) tab2LangSelect.value = controlValues.lang;
+        return;
+    }
+    const langSelect = document.getElementById('langSelect');
+    const fontSizeSelect = document.getElementById('fontSizeSelect');
+    const unitSelect = document.getElementById('unitSelect');
+    const fontFamilySelect = document.getElementById('fontFamilySelect');
+    if (langSelect && controlValues.lang) langSelect.value = controlValues.lang;
+    if (fontSizeSelect && controlValues.fontSize) fontSizeSelect.value = controlValues.fontSize;
+    if (unitSelect && controlValues.unit) unitSelect.value = controlValues.unit;
+    if (fontFamilySelect && controlValues.fontFamily) fontFamilySelect.value = controlValues.fontFamily;
+}
+
+function saveActiveTabControls() {
+    previewTabState[activePreviewTab].controls = getHeaderControlValues();
+}
+
+function captureRenderForActiveTab() {
+    if (activePreviewTab !== 'primary') {
+        return;
+    }
+
+    const primarySpin = document.getElementById('spin');
+    if (!primarySpin) {
+        return;
+    }
+
+    previewTabState[activePreviewTab].renderedHTML = primarySpin.innerHTML;
+    previewTabState[activePreviewTab].renderedFontFamily = primarySpin.style.fontFamily || '';
+    previewTabState[activePreviewTab].renderedFontSize = primarySpin.style.fontSize || '';
+}
+
+function initializeRenderCaptureObserver() {
+    const primarySpin = document.getElementById('spin');
+    if (!primarySpin) {
+        return;
+    }
+
+    // Capture every renderer update into the currently active tab state.
+    const observer = new MutationObserver(function() {
+        captureRenderForActiveTab();
+    });
+
+    observer.observe(primarySpin, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true
+    });
+}
+
+function renderActiveTab() {
+    if (activePreviewTab === 'duplicate') {
+        if (window.tab2FontsPreview && typeof window.tab2FontsPreview.renderCurrent === 'function') {
+            window.tab2FontsPreview.renderCurrent();
+        }
+        return;
+    }
+
+    if (typeof initializeApp === 'function' && typeof enData !== 'undefined' && enData) {
+        initializeApp(enData);
+        return;
+    }
+
+    const primarySpin = document.getElementById('spin');
+    if (!primarySpin) {
+        return;
+    }
+
+    const cached = previewTabState[activePreviewTab];
+    if (cached && cached.renderedHTML) {
+        primarySpin.innerHTML = cached.renderedHTML;
+        primarySpin.style.fontFamily = cached.renderedFontFamily;
+        primarySpin.style.fontSize = cached.renderedFontSize;
+    }
+}
+
+function setActivePreviewTab(tab) {
+    const primaryPane = document.getElementById('previewPanePrimary');
+    const duplicatePane = document.getElementById('previewPaneDuplicate');
+    const primaryBtn = document.getElementById('previewTabPrimary');
+    const duplicateBtn = document.getElementById('previewTabDuplicate');
+
+    if (!primaryPane || !duplicatePane || !primaryBtn || !duplicateBtn) {
+        return;
+    }
+
+    saveActiveTabControls();
+    activePreviewTab = tab;
+    applyHeaderControlValues(previewTabState[activePreviewTab].controls);
+    renderActiveTab();
+
+    const primaryActive = activePreviewTab === 'primary';
+    primaryPane.style.display = primaryActive ? 'block' : 'none';
+    duplicatePane.style.display = primaryActive ? 'none' : 'block';
+
+    TAB1_CONTROL_IDS.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = primaryActive ? '' : 'none';
+    });
+    TAB2_CONTROL_IDS.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = primaryActive ? 'none' : '';
+    });
+
+    primaryBtn.style.background = primaryActive ? '#1976d2' : '#fff';
+    primaryBtn.style.color = primaryActive ? '#fff' : '#1976d2';
+    duplicateBtn.style.background = primaryActive ? '#fff' : '#1976d2';
+    duplicateBtn.style.color = primaryActive ? '#1976d2' : '#fff';
+}
+
+function initializePreviewTabs() {
+    const primaryBtn = document.getElementById('previewTabPrimary');
+    const duplicateBtn = document.getElementById('previewTabDuplicate');
+
+    if (primaryBtn) {
+        primaryBtn.addEventListener('click', function() {
+            setActivePreviewTab('primary');
+        });
+    }
+
+    if (duplicateBtn) {
+        duplicateBtn.addEventListener('click', function() {
+            setActivePreviewTab('duplicate');
+        });
+    }
+
+    const langSelect = document.getElementById('langSelect');
+    const fontSizeSelect = document.getElementById('fontSizeSelect');
+    const unitSelect = document.getElementById('unitSelect');
+    const fontFamilySelect = document.getElementById('fontFamilySelect');
+
+    [langSelect, fontSizeSelect, unitSelect, fontFamilySelect].forEach(function(ctrl) {
+        if (!ctrl) {
+            return;
+        }
+
+        ctrl.addEventListener('change', function() {
+            saveActiveTabControls();
+        });
+    });
+
+    setActivePreviewTab('primary');
+    initializeRenderCaptureObserver();
+}
+
+var hasRequiredSessionData = sessionStorage.getItem('langFiles') && sessionStorage.getItem('fontFiles') && sessionStorage.getItem('langFilesWithFonts');
+if (!hasRequiredSessionData) {
+    window.location.href = 'index.html';
+} else {
+    document.getElementById('previewUI').style.display = '';
+    initializePreviewTabs();
+    if (window.tab2FontsPreview && typeof window.tab2FontsPreview.initialize === 'function') {
+        window.tab2FontsPreview.initialize();
+    }
+}
+
 // Logout button clears session and navigates to root
 document.addEventListener('click', function(e) {
     if (e.target && e.target.id === 'logoutBtn') {

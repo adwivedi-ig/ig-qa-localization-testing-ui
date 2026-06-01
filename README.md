@@ -1,49 +1,86 @@
 # Localization Upload & Preview Tool
 
 ## Overview
-This web application allows you to upload, preview, and verify localization files (JSON) for web applications. It is designed for content managers and developers to ensure localization accuracy before deployment. All processing is done client-side for privacy and security.
+A client-side web application for uploading, previewing, and verifying localization JSON files. Designed for content managers and developers to catch width overflows and font rendering issues before deployment. All processing happens in the browser — no server required.
 
-## Features
-- Upload multiple language JSON files (e.g., en.json, fr.json, etc.)
-- Upload a font family JSON file
-- Requires at least the English (en.json) file for validation
-- Preview and verify localization content with selectable language, font size, unit, and font family
-- Responsive, modern UI with clear instructions and error/success messages
-- All uploaded files are stored in sessionStorage for the session
-- No server-side processing; all logic is client-side
+## Project Structure
+
+```
+index.html            — Upload page
+preview.html          — Preview page (Home + Localized tabs)
+upload.js             — File validation and sessionStorage storage
+spin-localization.js  — Home tab rendering logic
+Localized.js          — Localized tab rendering logic
+font-family/          — Font family JSON files
+languages/            — Language JSON files
+```
 
 ## How to Use
-1. **Open `index.html` in your browser.**
-2. **Upload Files:**
-   - Click the file input for "Language JSON files" and select one or more language files (must include `en.json`).
-   - Click the file input for "Font Family JSON file" and select your font family JSON file.
-   - Click the "Upload & Continue" button.
-3. **Preview & Verify:**
-   - After uploading, the UI will transition to a preview area.
-   - Use the dropdowns to select language, font size, unit, and font family.
-   - The preview area will render the localization content for verification.
-4. **Logout/Reset:**
-   - Click the "Logout" button to reload the page and clear the session.
 
-## File Requirements
-- **Language Files:** Must be valid JSON files. At least `en.json` is required.
-- **Font Family File:** Must be a valid JSON file.
-- Only JSON files are accepted for upload.
+### 1. Upload (index.html)
+Three file inputs are required:
+
+| Input | Description |
+|---|---|
+| **Language JSON files** | One or more language files including `en.json` (English baseline) |
+| **Language JSON files with fonts** | Same language files but with embedded font metadata per key (`font-name`, `font-size`, `pixel`) |
+| **Font Family JSON file** | A JSON array of font name strings, e.g. `["Arial", "Gill Sans"]` |
+
+Click **Upload & Continue** to proceed to the preview.
+
+### 2. Home Tab
+- Compares each language against the English baseline (`en.json`)
+- Controls: **Lang** (ALL or specific language), **Font Size**, **Unit**, **Font Family**
+- **ALL** mode: shows only keys where the translated text is wider than English (red = overflow)
+- **Single lang** mode: shows all keys with red/green width indicators
+- **Flip Layout** button switches between vertical and horizontal (side-by-side) view
+- Language navigation links for quick jumping between sections
+
+### 3. Localized Tab
+- Uses the **Language JSON files with fonts** (font metadata embedded per key)
+- Compares each language against `en.json` using each entry's own `font-name` and `font-size`
+- Controls: **Lang** (ALL or specific language)
+- **ALL** mode: shows only languages with at least one width overflow
+- **Single lang** mode: shows all common keys with red/green indicators
+- Key line format: `KEY [en_width - lang_width] | font-name: X | font-size: Y`
+- **Flip Layout** + language navigation same as Home tab
+- Sticky footer scroll bar in horizontal layout mode
+
+### 4. Logout
+Click **Logout** to clear sessionStorage and return to the upload page.
+
+## File Formats
+
+### Language JSON (with fonts)
+```json
+{
+  "KEY_NAME": {
+    "text": "Translated string",
+    "font-name": "Gill Sans",
+    "font-size": 20,
+    "pixel": "px"
+  }
+}
+```
+
+### Language JSON (without fonts)
+```json
+{
+  "KEY_NAME": {
+    "text": "Translated string"
+  }
+}
+```
+
+### Font Family JSON
+```json
+["Arial", "Gill Sans", "Franklin Gothic Medium"]
+```
+
+## Width Comparison Logic
+- **Red** — the translated text is wider than the English baseline at the given font/size (potential overflow)
+- **Green** — the translated text fits within the English baseline width
 
 ## Security & Privacy
-- All processing is done in the browser; no files are sent to a server.
-- Uploaded files are stored in `sessionStorage` and cleared on logout or page reload.
-
-## Extending the Tool
-- The upload logic is in `upload.js`.
-- The preview and rendering logic is in `spin-localization.js`.
-- The UI is defined in `index.html`.
-- You can add support for more languages or features by extending these scripts.
-
-## Accessibility & Usability
-- Responsive design for various screen sizes
-- Clear error and success messages for user feedback
-
----
-
-For more details, see `Implementation_Summary.md`.
+- No files are sent to any server; all processing is in the browser
+- Files are stored in `sessionStorage` and cleared on logout or tab close

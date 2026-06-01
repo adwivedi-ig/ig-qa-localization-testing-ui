@@ -333,7 +333,7 @@ function initializeApp(enData) {
                 var navBar = document.createElement("div");
                 navBar.style.position = "sticky";
                 navBar.style.top = "0";
-                navBar.style.background = "transparent";
+                navBar.style.background = "#fff";
                 navBar.style.zIndex = "10";
                 navBar.style.padding = "8px 0 16px 0";
                 navBar.style.marginBottom = "16px";
@@ -535,7 +535,7 @@ function initializeApp(enData) {
                 var navBar = document.createElement("div");
                 navBar.style.position = "sticky";
                 navBar.style.top = "0";
-                navBar.style.background = "transparent";
+                navBar.style.background = "#fff";
                 navBar.style.zIndex = "10";
                 navBar.style.padding = "8px 0 16px 0";
                 navBar.style.marginBottom = "16px";
